@@ -41,6 +41,6 @@ Allen Fair, allen.fair@gmail.com, http://github.com/afair
 
 Thank you to:
 * Iulian Dogariu, http://github.com/iulianu (Fixes)
-* Julian Mehnle.net, http://www.mehnle.net/ (Suggestions)
+* Julian Mehnle, http://www.mehnle.net (Suggestions)
 
 Copyright (c) 2010 Allen M. Fair, released under the MIT license

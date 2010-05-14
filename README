@@ -15,7 +15,7 @@ the query by using the PostgreSQL cursors.
 Example
 =======
 
-Account.find_by_cursor(:account_cursor, true, :all, :conditions=>["status = ?", 'good']) do |row|
+Account.find_cursor(:account_cursor, true, :all, :conditions=>["status = ?", 'good']) do |row|
   puts row.to_json
 end
 

@@ -5,7 +5,7 @@
 class ActiveRecord::ConnectionAdapters::PostgreSQLAdapter
   
   # Starts buffered result set processing for a given SQL statement. The DB
-  def open_cursor(sql, name="csr", buffer_size=10000)
+  def open_cursor(sql, name="csr", buffer_size=10_000)
     sql = replace_params(*(sql.flatten)) if sql.is_a?(Array)
     @cursors ||= {}
     @cursors[name] = {}
@@ -32,7 +32,6 @@ class ActiveRecord::ConnectionAdapters::PostgreSQLAdapter
     fetch_buffer(name) if @cursors[name][:state] == :empty
     return nil if @cursors[name][:state] == :eof
     @cursors[name][:state] = :empty if @cursors[name][:buffer].size <= 1
-    #row_tuple_to_hash name, @cursors[name][:buffer].shift
     row = @cursors[name][:buffer].shift
     row.is_a?(Hash) ? row.symbolize_keys : row
   end
@@ -63,11 +62,6 @@ class ActiveRecord::ConnectionAdapters::PostgreSQLAdapter
     pg_result = execute("close #{name}")
     @cursors.delete(name)
   end
-  
-  # Returns a cursor to process that row. Cursors must be processed inside a transaction block
-  #def cursor(sql, name='csr', buffer_size=10000)
-  #  ActiveRecord::ConnectionAdapters::PGcursor.new(self, sql, name, buffer_size)
-  #end
   
   # Iterates over a cursor within a transaction block
   def cursor_eachrow(sql, name='csr', transaction=true, buffer_size=10000)
@@ -134,6 +128,7 @@ class ActiveRecord::Base
       connection.commit_db_transaction if transaction
       count
     end
+    
   end
 
 end

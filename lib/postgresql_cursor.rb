@@ -117,15 +117,18 @@ class ActiveRecord::Base
     # If transaction is true, it will wrap a transaction block around the processing. Each
     # row is yeilded to the block as a hash[:colname] 
     def find_cursor(name, transaction, *findargs)
-      connection.begin_db_transaction if transaction
-      open_cursor(name, *findargs)
       count = 0
-      while (row = ActiveRecord::Base.fetch_cursor(name)) do
-        count+= 1
-        yield row
+      begin
+        connection.begin_db_transaction if transaction
+        open_cursor(name, *findargs)
+        while (row = ActiveRecord::Base.fetch_cursor(name)) do
+          count+= 1
+          yield row
+        end
+        close_cursor(name)
+      ensure
+        connection.commit_db_transaction if transaction
       end
-      close_cursor(name)
-      connection.commit_db_transaction if transaction
       count
     end
     

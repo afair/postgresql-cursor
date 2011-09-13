@@ -65,16 +65,19 @@ class ActiveRecord::ConnectionAdapters::PostgreSQLAdapter
 
   # Iterates over a cursor within a transaction block
   def cursor_eachrow(sql, name='csr', transaction=true, buffer_size=10000)
-    begin_db_transaction if transaction
-    open_cursor(sql, name, buffer_size)
     count = 0
-    while (row = fetch_cursor(name)) do
-      count+= 1
-      #puts "EACH CSR #{row.inspect}"
-      yield row
+    begin
+      begin_db_transaction if transaction
+      open_cursor(sql, name, buffer_size)
+      while (row = fetch_cursor(name)) do
+        count+= 1
+        #puts "EACH CSR #{row.inspect}"
+        yield row
+      end
+      close_cursor(name)
+    ensure
+      commit_db_transaction if transaction
     end
-    close_cursor(name)
-    commit_db_transaction if transaction
     count
   end
 

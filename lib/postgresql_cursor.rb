@@ -1,9 +1,9 @@
 # PostgreSQLCursor
-# An extenstion for PostgreSQL adapter to select large result sets, buffered, and "fetched" 
+# An extenstion for PostgreSQL adapter to select large result sets, buffered, and "fetched"
 # from the buffer. Hashes are returned for each row instead of an ActiveRecord subcless.
 # Warning: This file must be laoded after ActiveRecord. Probably as a merb dependency gem/plugin.
 class ActiveRecord::ConnectionAdapters::PostgreSQLAdapter
-  
+
   # Starts buffered result set processing for a given SQL statement. The DB
   def open_cursor(sql, name="csr", buffer_size=10_000)
     sql = replace_params(*(sql.flatten)) if sql.is_a?(Array)
@@ -16,7 +16,7 @@ class ActiveRecord::ConnectionAdapters::PostgreSQLAdapter
     @cursors[name][:buffer_size] = buffer_size
     @cursors[name][:buffer] = nil
   end
-  
+
   # Fetches the next block of rows into memory
   def fetch_buffer(name='csr') #:nodoc:
     return unless @cursors[name][:state] == :empty
@@ -56,28 +56,31 @@ class ActiveRecord::ConnectionAdapters::PostgreSQLAdapter
     end
     hashed_row
   end
-  
+
   # Closes the cursor to clean up resources
   def close_cursor(name='csr')
     pg_result = execute("close #{name}")
     @cursors.delete(name)
   end
-  
+
   # Iterates over a cursor within a transaction block
   def cursor_eachrow(sql, name='csr', transaction=true, buffer_size=10000)
-    begin_db_transaction if transaction
-    open_cursor(sql, name, buffer_size)
-    count = 0 
-    while (row = fetch_cursor(name)) do
-      count+= 1
-      #puts "EACH CSR #{row.inspect}"
-      yield row
+    count = 0
+    begin
+      begin_db_transaction if transaction
+      open_cursor(sql, name, buffer_size)
+      while (row = fetch_cursor(name)) do
+        count+= 1
+        #puts "EACH CSR #{row.inspect}"
+        yield row
+      end
+      close_cursor(name)
+    ensure
+      commit_db_transaction if transaction
     end
-    close_cursor(name)
-    commit_db_transaction if transaction
     count
   end
-  
+
   # Performs a simple parameter substitution of '?'s in the sql statement
   def replace_params(sql, *params)
     sql.gsub!(/\?/)  { |a| quote(params.shift) }
@@ -88,7 +91,7 @@ end
 class ActiveRecord::Base
   class <<self
 
-    # Ask the database to perform the buffered restult set stream. Pass the cursor name 
+    # Ask the database to perform the buffered restult set stream. Pass the cursor name
     # for the query and the parameters for the #find method. The SQL is built and run.
     def open_cursor(name, *args)
       options = args.last.is_a?(Hash) ? args.pop : {}
@@ -97,7 +100,7 @@ class ActiveRecord::Base
       sql = construct_finder_sql(options)
       connection.open_cursor(sql, name)
     end
-    
+
     # Opens a cursor with a full SQL statement and replacable parameters (identified by ? in the SQL)
     def open_cursor_with_sql(name, *sql_and_args, &block)
       connection.cursor_eachrow(sql_and_args, name, &block)
@@ -115,20 +118,23 @@ class ActiveRecord::Base
 
     # Like the #find method, this creates a result set stream with the given cursor name.
     # If transaction is true, it will wrap a transaction block around the processing. Each
-    # row is yeilded to the block as a hash[:colname] 
+    # row is yeilded to the block as a hash[:colname]
     def find_cursor(name, transaction, *findargs)
-      connection.begin_db_transaction if transaction
-      open_cursor(name, *findargs)
       count = 0
-      while (row = ActiveRecord::Base.fetch_cursor(name)) do
-        count+= 1
-        yield row
+      begin
+        connection.begin_db_transaction if transaction
+        open_cursor(name, *findargs)
+        while (row = ActiveRecord::Base.fetch_cursor(name)) do
+          count+= 1
+          yield row
+        end
+        close_cursor(name)
+      ensure
+        connection.commit_db_transaction if transaction
       end
-      close_cursor(name)
-      connection.commit_db_transaction if transaction
       count
     end
-    
+
   end
 
 end
